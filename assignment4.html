@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>D3: A simple bar chart</title>
+		<script src="//d3js.org/d3.v3.min.js"></script>
+		<style type="text/css">
+			.axis path,
+			.axis line {
+				fill: none;
+				stroke: black;
+				shape-rendering: crispEdges;
+			}
+			
+			.axis text {
+				font-family: sans-serif;
+				font-size: 11px;
+			}		</style>
+	</head>
+	<body>
+		<p>The bar charts: a histogram of the result of rolling 2 dices twenty times.</p><br/>
+		<button type="button">Half the bars (once only)</button><br/>
+		<script type="text/javascript">
+
+//Width and height
+var w = 300;
+var h = 200;
+var bottomPadding = 50;
+var barPadding = 1;
+var padding = 1;
+
+var data = [ 3, 10, 10, 6, 8, 6, 5, 9, 7, 6, 
+				5, 4, 8, 6, 10, 7, 4, 7, 8, 7, 
+				8, 2, 6, 4, 6, 4, 9, 5, 6, 3 ];
+
+var dataset = new Array(11);
+dataset.fill(0)
+
+var arrayLength = data.length;
+for (var i = 0; i < arrayLength; i++) {
+    dataset[data[i]-2] = dataset[data[i]-2] + 1;
+}
+
+
+//Create SVG element
+var svg = d3.select("body")
+			.append("svg")
+			.attr("width", w)
+			.attr("height", h)
+			.append("g")
+			.attr("transform", "translate(10, 10)");
+
+var xScale = d3.scale.linear()
+	.domain([2, 12])
+	.range([0, w-30]);
+
+var yScale = d3.scale.linear()
+	.domain([0, d3.max(dataset)])
+	.range([h-bottomPadding, 0]);
+
+var heightScale = d3.scale.linear()
+	.domain([0, d3.max(dataset)])
+	.range([0, h-bottomPadding]);
+
+var axis = d3.svg.axis()
+	.scale(xScale);
+
+svg.selectAll("rect")
+   .data(dataset)
+   .enter()
+	   .append("rect")
+	   .attr("x", function(d, i) {
+	   		return xScale(i+2);
+	   })
+	   .attr("y", function(d) {
+	   		return yScale(0);
+	   })
+	   .attr("width", w / dataset.length - barPadding)
+	   .attr("height", function(d) {
+	   		return heightScale(0);
+	   });
+
+svg.selectAll("rect")
+		.transition()
+		.duration(2000)
+	   .attr("y", function(d) {
+	   		return yScale(d);
+	   })
+	   .attr("height", function(d) {
+	   		return heightScale(d);
+	   })
+	   .attr("fill", function(d) {
+			return "rgb(0, 0, " + (d * 30) + ")";
+	   });
+
+svg.selectAll("text")
+   .data(dataset)
+   .enter()
+   .append("text")
+
+svg.selectAll("text")
+   .text(function(d) {
+   		return d;
+   })
+   .attr("text-anchor", "middle")
+   .attr("x", function(d, i) {
+   		return xScale(i+2) + (w / dataset.length - barPadding) / 2;
+   })
+   .attr("y", function(d) {
+   		return yScale(0) + 14;
+   })
+   .attr("font-family", "sans-serif")
+   .attr("font-size", "11px")
+   .attr("fill", "white");
+
+svg.selectAll("text")
+	.transition()
+	.duration(2000)
+   .text(function(d) {
+   		return d;
+   })
+   .attr("text-anchor", "middle")
+   .attr("y", function(d) {
+   		return yScale(d) + 14;
+   });
+
+svg.append("g")
+	.call(axis)
+	.attr("transform", "translate(10, " + (yScale(0)+10).toString() + ")");
+
+//On click, update with new data
+d3.select("button")
+    .on("click", function() {
+
+   svg.selectAll("rect")
+      .data(dataset)
+      .transition()
+		.duration(2000)
+
+         .attr("y", function(d) {return yScale(d/2);})
+         .attr("height", function(d) {return heightScale(d/2);});
+
+   svg.selectAll("text")
+   	.data(dataset)
+   	.transition()
+   	.duration(2000)
+      .attr("y", function(d) {return yScale(d/2)+14;})
+      .text(function(d) { return d/2;});
+
+    });
+
+			
+		</script>
+	</body>
+</html>
