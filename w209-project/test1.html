@@ -21,6 +21,13 @@
           success: function(csvString) {
             arrayData = $.csv.toArrays(csvString, {onParseValue: $.csv.hooks.castToScalar}); 
             arrayData.shift();
+
+            // Remove the first six and last six items, so that the date range will be in sync with that
+            // of the trend series.
+            for (i = 0; i < 6; i++) {
+              arrayData.shift();
+              arrayData.pop();
+            }
             inputData[0] = $.map( arrayData, function(val, i) {
               return [[new Date(val[0]), val[1]]];
             });
@@ -56,7 +63,9 @@
           }
         });
 
+
         var options = {
+          title: "",
           hAxis: {
             title: 'Time'
           },
@@ -80,7 +89,8 @@
 
         var chart = new google.visualization.LineChart(document.getElementById("original_div"));
 
-        function drawOneChart2(inputData) {
+        function drawOneChart2(inputData, title) {
+          options["title"] = title;
           data.removeRows(0, data.getNumberOfRows())
           data.addRows(inputData);
           chart.draw(data, options);
@@ -90,11 +100,13 @@
 
         var button = document.getElementById('b1');
 
-        drawOneChart2(inputData[current], false)
+        var chartTypes = ["Original Data", "Removed seaonality fluctuation", "Summarized by Change Points"]
+
+        drawOneChart2(inputData[current], "New York States: " + chartTypes[current]);
 
         button.onclick = function() {
           current = (current + 1) % 3;
-          drawOneChart2(inputData[current]);
+          drawOneChart2(inputData[current], "New York States: " + chartTypes[current]);
         }
 
       }
