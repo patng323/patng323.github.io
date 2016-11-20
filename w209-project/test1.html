@@ -1,0 +1,151 @@
+<html>
+  <head>
+    <!--Load the AJAX API-->
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js"></script>
+    <script type="text/javascript">
+
+      // Load the Visualization API and the corechart package.
+      google.charts.load('current', {'packages':['corechart']});
+
+      // Set a callback to run when the Google Visualization API is loaded.
+      google.charts.setOnLoadCallback(drawBasic);
+
+      function drawOneChart(csvString, isCpts, divName) {
+        // transform the CSV string into a 2-dimensional array
+        var arrayData = $.csv.toArrays(csvString, {onParseValue: $.csv.hooks.castToScalar});
+
+        var options = {
+          hAxis: {
+            title: 'Time'
+          },
+          vAxis: {
+            title: 'Queries'
+          }
+        };
+
+        var data = new google.visualization.DataTable();
+        data.addColumn('date', 'Date');
+        data.addColumn('number', 'Queries');
+
+        arrayData.shift();
+
+        if (isCpts) {
+          arrayData2 = $.map( arrayData, function(val, i) {
+            return [[new Date(val[2]), val[0]]];
+          })
+        } else {
+          arrayData2 = $.map( arrayData, function(val, i) {
+            return [[new Date(val[0]), val[1]]];
+          })
+        }
+
+        data.addRows(arrayData2);
+
+        var chart = new google.visualization.LineChart(document.getElementById(divName));
+
+        chart.draw(data, options);
+      }
+
+      var options = {
+        hAxis: {
+          title: 'Time'
+        },
+        vAxis: {
+          title: 'Queries'
+        },
+        animation:{
+          duration: 1000,
+          easing: 'out'
+        }
+      };
+
+      function drawBasic() {
+        //$.get("ts.United_States-New_York.csv", function(csvString) { drawOneChart(csvString, false, "original_div") } );
+        //$.get("trend.United_States-New_York.csv", function(csvString) { drawOneChart(csvString, false, "trend_div") } );
+        //$.get("cpts.United_States-New_York.csv", function(csvString) { drawOneChart(csvString, true, "cpts_div") } );
+
+        var inputData = [];
+
+        //$.get("ts.United_States-New_York.csv", function(csvString) { 
+        //  data[0] = $.csv.toArrays(csvString, {onParseValue: $.csv.hooks.castToScalar}); 
+        //} );
+
+        $.ajax({ url: 'ts.United_States-New_York.csv', 
+          async: false,
+          success: function(csvString) {
+            inputData[0] = $.csv.toArrays(csvString, {onParseValue: $.csv.hooks.castToScalar}); 
+          }
+        });
+
+        $.ajax({ url: 'trend.United_States-New_York.csv', 
+          async: false,
+          success: function(csvString) {
+            inputData[1] = $.csv.toArrays(csvString, {onParseValue: $.csv.hooks.castToScalar}); 
+          }
+        });
+
+        $.ajax({ url: 'cpts.United_States-New_York.csv', 
+          async: false,
+          success: function(csvString) {
+            inputData[2] = $.csv.toArrays(csvString, {onParseValue: $.csv.hooks.castToScalar}); 
+          }
+        });
+
+        var data = new google.visualization.DataTable();
+        data.addColumn('date', 'Date');
+        data.addColumn('number', 'Queries');
+
+        var chart = new google.visualization.LineChart(document.getElementById("original_div"));
+
+        function drawOneChart2(arrayData, isCpts) {
+
+          arrayData.shift();
+
+          if (isCpts) {
+            arrayData2 = $.map( arrayData, function(val, i) {
+              return [[new Date(val[2]), val[0]]];
+            })
+          } else {
+            arrayData2 = $.map( arrayData, function(val, i) {
+              return [[new Date(val[0]), val[1]]];
+            })
+          }
+
+          n = data.getNumberOfRows();
+          data.removeRows(0, n)
+          data.addRows(arrayData2);
+
+          chart.draw(data, options);
+        }
+
+
+        current = 0;
+
+        var button = document.getElementById('b1');
+
+        drawOneChart2(inputData[current], false)
+
+        button.onclick = function() {
+          current = (current + 1) % 3;
+
+          isCpts = false;
+          if (current == 2) {
+            isCpts = true;
+          }
+          drawOneChart2(inputData[current], isCpts);
+        }
+
+      }
+    </script>
+  </head>
+
+  <body>
+    <!--Div that will hold the pie chart-->
+    <div id="original_div"></div>
+    <div id="trend_div"></div>
+    <div id="cpts_div"></div>
+    <button id="b1">Next</button>
+  </body>
+</html>
