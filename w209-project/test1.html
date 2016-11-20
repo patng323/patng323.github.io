@@ -79,8 +79,16 @@
           },
           animation:{
             duration: 1000,
-            easing: 'out'
+            easing: 'out',
+            startup: true
+          },
+          chartArea: {
+            left: 100
+          },
+          legend: {
+            position: "none"
           }
+
         };
 
         var data = new google.visualization.DataTable();
