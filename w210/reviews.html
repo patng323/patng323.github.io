@@ -1,0 +1,304 @@
+<html>
+  <head>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="http://s3.amazonaws.com/patngw210project/scripts/selectivity-3.0.3/selectivity.css" rel="stylesheet">
+
+    <style>
+    .highlightsent { background-color:#FFFF99; }
+    .selectBox { 
+      font-family: 'Lucida Grande', 'Calibri', Helvetica, Arial, sans-serif;
+      font-size: 11px;
+     }
+    .reviewInfo { 
+      font-family: 'Lucida Grande', 'Calibri', Helvetica, Arial, sans-serif;
+      font-size: 10px;
+     }
+    .reviewBody { 
+      font-family: 'Lucida Grande', 'Calibri', Helvetica, Arial, sans-serif;
+      font-size: 10px;
+      height: 100px;
+     }
+    .chosenRes { 
+      padding: 10px 0px 0px 40px;
+      font-family: 'Lucida Grande', 'Calibri', Helvetica, Arial, sans-serif; 
+    }
+    .lightBorder {
+      border: 1px solid black;
+    }
+
+    table.fixed { table-layout:fixed; }
+    table.fixed td { overflow: hidden; }
+
+    </style>
+
+    <script
+      src="https://code.jquery.com/jquery-3.1.1.min.js"
+      integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+      crossorigin="anonymous"></script>
+    <script type="text/javascript" src="http://s3.amazonaws.com/patngw210project/scripts/selectivity-3.0.3/selectivity-jquery.min.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(init);
+        
+      var urlBase = "http://s3.amazonaws.com/patngw210project/"
+      var chosenRestaurant;
+
+      function drawCharts(jsonData) {
+
+        var data = google.visualization.arrayToDataTable([
+          [
+            {type: 'number', label:'Frequency'},
+            {type: 'number', label:'Avg Sentiment'}, 
+            {type: 'string', role: 'annotation'}, 
+            {type: 'string', role: 'annotationText'}
+          ]
+        ]);
+
+        maxDish = 10
+        n = Math.min(jsonData.length, maxDish);
+        maxAvgSentiment = -100
+        minAvgSentiment = 100
+
+        $.each(jsonData.slice(0, n), function(i, item) {
+          data.addRow(item.slice(0,4));
+
+          maxAvgSentiment = Math.max(item[1], maxAvgSentiment);
+          minAvgSentiment = Math.min(item[1], minAvgSentiment);
+        });
+
+        var options = {
+          title: 'Average Sentiment and Frequency for top 10 dishes',
+          hAxis: {title: 'Frequency', minValue: 0},
+          vAxis: {title: 'Avg. Sentiment', minValue: minAvgSentiment - 0.02, maxValue: maxAvgSentiment + 0.02},
+          legend: 'none',
+          chartArea: {
+            left: 70, top: 40
+          }
+        };
+
+        var dishSummary = new google.visualization.ScatterChart(document.getElementById('dishSummary_div'));
+        dishSummary.draw(data, options);
+
+        var dataTime = google.visualization.arrayToDataTable([
+          [
+            {type: 'date', labe: 'Date'},
+            {type: 'number', label:'Sentiment'},
+          ]
+        ]);
+
+        var timeSeries = new google.visualization.ScatterChart(document.getElementById('time_div'));
+        var timeOptions = {
+          title: 'Mouse over a dish to see more info about its sentiments',
+          legend: { position: 'none' },
+          colors: ["red"],
+          hAxis: {title: 'Date'},
+          vAxis: {title: 'Sentiment', minValue: -1, maxValue: 1},
+          chartArea: {
+            left: 50, top: 40
+          }
+        };  
+
+        timeSeries.draw(dataTime, timeOptions);    
+
+        var dataReviewIds; 
+        var dataSentMd5s; 
+        var currentDish = -1;
+
+        var selectedReviewId;
+        var selectedSentMd5;
+        var loadedReviewId;
+        var loadingReviewId;
+
+
+        function loadReviewBody(reviewId, sentMd5) {
+          if (reviewId == null) {
+            $('#reviewInfo').html('');
+            $('#reviewBody').html('');
+            return;
+          }
+
+          if (loadedReviewId == reviewId) {
+            return;
+          }
+
+          //$('#reviewBody').html("This is the review body for review " + reviewId);
+          url = urlBase + "reviews/" + chosenRestaurant['id'] + "/" + reviewId + ".json";
+          console.log("loading content from " + url);
+
+          loadingReviewId = reviewId;
+
+          $.getJSON(
+              url,
+              function (result) {
+                $('#reviewInfo').html(
+                  'Date: ' + result['date'] + "; stars=" + result['stars'] + "; user=" + result['user_id']);
+
+                reviewText = result['text'];
+                $('#reviewBody').html(reviewText);
+
+                $('#' + sentMd5).addClass("highlightsent");
+                $('#reviewBody').addClass("lightBorder");
+
+                // Scroll the scrollable review body
+                var myElement = document.getElementById(sentMd5);
+                var topPos = myElement.offsetTop;
+                document.getElementById('reviewBody').scrollTop = Math.max(0, topPos - 20);
+
+                loadedReviewId = loadingReviewId;
+          });
+        }
+
+        google.visualization.events.addListener(timeSeries, 'onmouseover', function(e) {
+          if (e.column == 0) {
+            // This will happen if we mouse over the trendline
+            return;
+          }
+
+          //console.log("mouseover: row=" + e.row + ", col=" + e.column);
+          reviewId = dataReviewIds[e.row];
+          sentMd5 = dataSentMd5s[e.row];
+          loadReviewBody(reviewId, sentMd5);
+        });
+
+        google.visualization.events.addListener(timeSeries, 'onmouseout', function(e) {
+          if (e.column == 0) {
+            // This will happen if we mouse over the trendline
+            return;
+          }
+
+          console.log("mouseout: row=" + e.row + ", col=" + e.column + ", selectedReviewId=" + selectedReviewId);
+          reviewId = dataReviewIds[e.row];
+          if (selectedReviewId != null && selectedReviewId != reviewId) {
+            // The user has previously seleted a review.  Put that back.
+            loadReviewBody(selectedReviewId, selectedSentMd5);
+          }
+        });
+
+        google.visualization.events.addListener(timeSeries, 'select', function() {
+          e = timeSeries.getSelection()[0];
+          if (e.column == 0) {
+            // This will happen if we mouse over the trendline
+            return;
+          }
+
+          console.log("select: row=" + e.row + ", col=" + e.column);
+
+          reviewId = dataReviewIds[e.row];
+          sentMd5 = dataSentMd5s[e.row];
+
+          selectedReviewId = reviewId; 
+          selectedSentMd5 = sentMd5;
+
+          loadReviewBody(reviewId, sentMd5);
+        });
+
+        google.visualization.events.addListener(dishSummary, 'onmouseover', function(e) {
+          if (e.row == currentDish) {
+            return;
+          }
+
+          currentDish = e.row;
+
+          timeOptions.title = jsonData[currentDish][3];
+          var dataTime = google.visualization.arrayToDataTable([
+            [
+              {type: 'date', labe: 'Date'},
+              {type: 'number', label:'Sentiment'},
+            ]
+          ]);
+
+          dataReviewIds = [];
+          dataSentMd5s = [];
+          $.each(jsonData[currentDish][5], function(i, item) {
+            date = new Date(item[0][0], item[0][1]-1, item[0][2]);
+            dataTime.addRow([date, item[1]]);
+
+            dataReviewIds.push(item[2]);
+            dataSentMd5s.push(item[3]);
+          });
+
+          /*
+          timeOptions.trendlines = { 0: {
+                    color: 'red',
+                    lineWidth: 5,
+                    opacity: 0.2,
+                    tooltip: false
+          } }    // Draw a trendline for data series 0.
+          */
+
+          timeSeries.draw(dataTime, timeOptions);
+
+          // Clear timeSeries related info
+          selectedReviewId = null;
+          loadingReviewId = null;
+          loadedReviewId = null;
+          loadReviewBody(null);
+
+          $('#reviewBody').removeClass("lightBorder");
+        });   
+
+      }
+
+      function init() {
+        $.getJSON(
+          urlBase + "result/restaurants.json",
+          function (result) {
+            restaurants = result;
+
+            $('#selectRes').selectivity({
+                allowClear: true,
+                items: result,
+                placeholder: 'Please select a restaurant'
+            });
+
+            $('#selectRes').on("change", function() {
+              chosenRestaurant = $('#selectRes').selectivity('data');
+
+              $('#chosenRes').text(chosenRestaurant['text']);
+              $.getJSON(
+                urlBase + "result/" + chosenRestaurant['id'] + ".json",
+                function (result) {
+                  drawCharts(result);
+                });
+            });            
+          });
+      }
+
+    </script>
+  </head>
+  <body>
+    <!--Table and divs that hold the pie charts-->
+    <table class="fixed">
+      <col width="160px" />
+      <col width="180px" />
+
+      <tr><br/></tr>
+      <tr>
+        <td><div id="selectRes" class="selectivity-input, selectBox"
+          style="padding: 0px 10px 0px 5px;"></div></td>
+        <td><h2 id="chosenRes"  class="chosenRes"></h2></td>
+      </tr>
+      <tr>
+        <td><div id="dishSummary_div" style="width: 500px; height: 400px;"></div></td>
+        <td><div id="time_div" style="width: 600px; height: 400px;"></div></td>
+      </tr>
+      <tr>
+        <td></td>
+        <td class="reviewInfo">
+          <b id='reviewInfo'></b>
+        </td> 
+      </tr>
+      <tr>
+        <td></td>
+        <td>
+          <div id='reviewBody' class='reviewBody'
+              style="overflow-y:auto; height:130px;">
+          </div>
+        </td> 
+      </tr>
+    </table>
+  </body>
+</html>
