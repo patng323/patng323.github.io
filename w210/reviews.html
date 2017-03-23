@@ -226,6 +226,17 @@
 
         google.visualization.events.addListener(dishSummary, 'select', function() {
           e = dishSummary.getSelection()[0];
+          if (e == null) {
+            if (selectedDish != null) {
+              // It is a deselect
+              selectedDish = null;
+              selectedReview = null;
+              selectedReviewId = null;
+              selectedSentMd5 = null;
+            }
+            return;
+          }
+
           console.log("Dish selected: row=" + e.row);
 
           if (selectedDish == e.row) {
