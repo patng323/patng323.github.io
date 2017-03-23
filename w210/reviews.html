@@ -105,12 +105,15 @@
 
         var dataReviewIds; 
         var dataSentMd5s; 
-        var currentDish = -1;
+        var currentDish = null;
 
-        var selectedReviewId;
-        var selectedSentMd5;
-        var loadedReviewId;
+        var selectedReviewId = null;
+        var selectedSentMd5 = null;
+        var loadedReviewId = null;
+        var selectedReview = null;
         var loadingReviewId;
+
+        var selectedDish = null;
 
 
         function loadReviewBody(reviewId, sentMd5) {
@@ -134,7 +137,8 @@
               url,
               function (result) {
                 $('#reviewInfo').html(
-                  'Date: ' + result['date'] + "; stars=" + result['stars'] + "; user=" + result['user_id']);
+                  'Date: ' + result['date'] + "&nbsp;&nbsp;Stars=" + result['stars']);
+                  //'Date: ' + result['date'] + "; stars=" + result['stars'] + "; user=" + result['user_id']);
 
                 reviewText = result['text'];
                 $('#reviewBody').html(reviewText);
@@ -189,6 +193,8 @@
           reviewId = dataReviewIds[e.row];
           sentMd5 = dataSentMd5s[e.row];
 
+          selectedReview = e;
+
           selectedReviewId = reviewId; 
           selectedSentMd5 = sentMd5;
 
@@ -196,13 +202,49 @@
         });
 
         google.visualization.events.addListener(dishSummary, 'onmouseover', function(e) {
+          console.log("Dish mouseover: row=" + e.row + ", currentDish=" + currentDish + ", selectedDish=" + selectedDish);
           if (e.row == currentDish) {
             return;
           }
 
           currentDish = e.row;
+          displayDish(currentDish, null);
+        });   
 
-          timeOptions.title = jsonData[currentDish][3];
+        google.visualization.events.addListener(dishSummary, 'onmouseout', function(e) {
+          console.log("Dish mouseout: row=" + e.row + ", selectedDish=" + selectedDish);
+          if (selectedDish != null && selectedDish != e.row) {
+            // The user has previously seleted a dish.  Put that back.
+            currentDish = selectedDish;
+            loadedReviewId = null;
+            displayDish(currentDish, selectedReview);
+
+            if (selectedReviewId != null) {
+              loadReviewBody(selectedReviewId, selectedSentMd5);
+            }
+          }
+        });
+
+        google.visualization.events.addListener(dishSummary, 'select', function() {
+          e = dishSummary.getSelection()[0];
+          console.log("Dish selected: row=" + e.row);
+
+          if (selectedDish == e.row) {
+            return;
+          }
+
+          selectedDish = e.row;
+          selectedReview = null;
+
+          selectedReviewId = null;
+          loadingReviewId = null;
+          loadedReviewId = null;
+          selectedSentMd5 = null;
+          loadReviewBody(null);
+        });
+
+        function displayDish(dish, selectedReview) {
+          timeOptions.title = jsonData[dish][3];
           var dataTime = google.visualization.arrayToDataTable([
             [
               {type: 'date', labe: 'Date'},
@@ -212,7 +254,7 @@
 
           dataReviewIds = [];
           dataSentMd5s = [];
-          $.each(jsonData[currentDish][5], function(i, item) {
+          $.each(jsonData[dish][5], function(i, item) {
             date = new Date(item[0][0], item[0][1]-1, item[0][2]);
             dataTime.addRow([date, item[1]]);
 
@@ -230,15 +272,14 @@
           */
 
           timeSeries.draw(dataTime, timeOptions);
-
-          // Clear timeSeries related info
-          selectedReviewId = null;
-          loadingReviewId = null;
-          loadedReviewId = null;
           loadReviewBody(null);
 
-          $('#reviewBody').removeClass("lightBorder");
-        });   
+          if (selectedReview != null) {
+            timeSeries.setSelection([selectedReview]);
+          }
+
+          $('#reviewBody').removeClass("lightBorder");          
+        }
 
       }
 
