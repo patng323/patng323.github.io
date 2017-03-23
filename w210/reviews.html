@@ -156,24 +156,14 @@
         }
 
         google.visualization.events.addListener(timeSeries, 'onmouseover', function(e) {
-          if (e.column == 0) {
-            // This will happen if we mouse over the trendline
-            return;
-          }
-
-          //console.log("mouseover: row=" + e.row + ", col=" + e.column);
+          //console.log("mouseover: row=" + e.row);
           reviewId = dataReviewIds[e.row];
           sentMd5 = dataSentMd5s[e.row];
           loadReviewBody(reviewId, sentMd5);
         });
 
         google.visualization.events.addListener(timeSeries, 'onmouseout', function(e) {
-          if (e.column == 0) {
-            // This will happen if we mouse over the trendline
-            return;
-          }
-
-          console.log("mouseout: row=" + e.row + ", col=" + e.column + ", selectedReviewId=" + selectedReviewId);
+          console.log("mouseout: row=" + e.row + ", selectedReviewId=" + selectedReviewId);
           reviewId = dataReviewIds[e.row];
           if (selectedReviewId != null && selectedReviewId != reviewId) {
             // The user has previously seleted a review.  Put that back.
@@ -183,12 +173,21 @@
 
         google.visualization.events.addListener(timeSeries, 'select', function() {
           e = timeSeries.getSelection()[0];
-          if (e.column == 0) {
-            // This will happen if we mouse over the trendline
+          if (e == null) {
+            if (selectedReview != null) {
+              // It is a deselect
+              selectedReview = null;
+              selectedReviewId = null;
+              selectedSentMd5 = null;
+            }
             return;
           }
 
-          console.log("select: row=" + e.row + ", col=" + e.column);
+          console.log("select: row=" + e.row);
+
+          if (selectedReview != null && e.row == selectedReview.row) {
+            return;
+          }
 
           reviewId = dataReviewIds[e.row];
           sentMd5 = dataSentMd5s[e.row];
