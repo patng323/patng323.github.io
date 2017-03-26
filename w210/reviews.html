@@ -46,6 +46,17 @@
       var urlBase = "https://s3.amazonaws.com/patngw210project/"
       var chosenRestaurant;
 
+      $.urlParam = function(name){
+        var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+        if (results == null) {
+          return null;
+        } else {
+          return results[1];
+        }
+      }
+
+      var urlResId = $.urlParam("resId");
+
       function drawCharts(jsonData) {
 
         var data = google.visualization.arrayToDataTable([
@@ -293,6 +304,14 @@
 
       }
 
+      function processChosenRestaurant(chosenRestaurant) {
+          $.getJSON(
+            urlBase + "result/" + chosenRestaurant['id'] + ".json",
+            function (result) {
+              drawCharts(result);
+            });
+      }
+
       function init() {
         $.getJSON(
           urlBase + "result/restaurants.json",
@@ -305,15 +324,16 @@
                 placeholder: 'Please select a restaurant'
             });
 
+            if (urlResId != null) {
+              $('#selectRes').selectivity('value', urlResId);  
+              chosenRestaurant = $('#selectRes').selectivity('data');
+              processChosenRestaurant(chosenRestaurant);
+            }
+
             $('#selectRes').on("change", function() {
               chosenRestaurant = $('#selectRes').selectivity('data');
-
               $('#chosenRes').text(chosenRestaurant['text']);
-              $.getJSON(
-                urlBase + "result/" + chosenRestaurant['id'] + ".json",
-                function (result) {
-                  drawCharts(result);
-                });
+              processChosenRestaurant(chosenRestaurant);
             });            
           });
       }
