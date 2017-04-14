@@ -7,7 +7,7 @@
     .highlightsent { background-color:#FFFF99; }
     .selectBox { 
       font-family: 'Lucida Grande', 'Calibri', Helvetica, Arial, sans-serif;
-      font-size: 11px;
+      font-size: 12px;
      }
     .reviewInfo { 
       font-family: 'Lucida Grande', 'Calibri', Helvetica, Arial, sans-serif;
@@ -15,19 +15,20 @@
      }
     .competitor {
       font-family: 'Lucida Grande', 'Calibri', Helvetica, Arial, sans-serif;
-      font-size: 10px;
+      font-size: 12px;
     }
     .reviewBody { 
       font-family: 'Lucida Grande', 'Calibri', Helvetica, Arial, sans-serif;
       font-size: 12px;
       height: 110px;
+      padding: 2px 2px 2px 2px;
      }
     .chosenRes { 
       padding: 10px 0px 0px 40px;
       font-family: 'Lucida Grande', 'Calibri', Helvetica, Arial, sans-serif; 
     }
     .lightBorder {
-      border: 1px solid black;
+      border: 1px solid grey;
     }
 
     table.fixed { table-layout:fixed; }
@@ -310,13 +311,17 @@
 
       var homeRestaurantId = null;
 
-      function processChosenRestaurant(setHomeResInfo) {
+      function processChosenRestaurant(setHomeResInfo, setCompetitorsList) {
           chosenRestaurant = $('#selectRes').selectivity('data');
           $('#chosenRes').text(chosenRestaurant['text']);
 
           if (setHomeResInfo) {
             homeRestaurantId = chosenRestaurant['id'];
             $('#backToHome').text('Back to ' + chosenRestaurant['text'])
+          }
+
+          if (setCompetitorsList) {
+            setCompetitorsData(chosenRestaurant['id']);          
           }
 
           $.getJSON(
@@ -326,59 +331,132 @@
             });
       }
 
-      var listShown = false;
-
-      function init() {
-        $.getJSON(
-          urlBase + "result/restaurants.json",
-          function (result) {
-            restaurants = result;
-
-            $('#selectRes').selectivity({
-                allowClear: true,
-                items: result,
-                placeholder: 'Please select a restaurant'
-            });
-
-            if (urlResId != null) {
-              $('#selectRes').selectivity('value', urlResId);  
-              processChosenRestaurant(true);
-            }
-
-            $('#selectRes').on("change", function() {
-              processChosenRestaurant(false);
-            }); 
-
-            $("#displayCompetitors").click(function(){
-              $('#competitorsList').toggle();
-              listShown = !listShown;
-              if (listShown) {
-                $('#displayCompetitors').text('Hide list')
-              } else {
-                $('#displayCompetitors').text('View analysis of selected competitor(s)')
+      function searchSimResData(allData, resId){
+          // Loop through the data to see if each array has the search term we need
+          for(i=0; i<allData.length; i++){
+              if (allData[i]["targetid"] == resId) {
+                return allData[i];                
               }
-            });   
+          }
 
-            $(".competitor").click(function(){
-              var clickedResId = $(this).attr('resId');
-              $('#selectRes').selectivity('value', clickedResId);  
-              processChosenRestaurant(false);
-
-              if (homeRestaurantId) {
-                $('#backToHome').show();
-              }
-            })    
-
-            $('#backToHome').click(function(){
-              if(homeRestaurantId) {
-                $('#selectRes').selectivity('value', homeRestaurantId);  
-                processChosenRestaurant(false);
-                $('#backToHome').hide();
-              }
-            })    
-          });
+          return null;
       }
 
+      function setCompetitorsData(resId) {
+        var nComp = 0;
+        $('#competitorsListTable').empty();
+
+        var competitorsData = searchSimResData(simResData, resId);
+        if (competitorsData) {
+
+          for (i=1; i <= 10; i++) {
+            compResId = competitorsData["hit" + i];
+            for (j=0; j < restaurants.length; j++) {
+              var resId = restaurants[j]["id"]
+
+              if (compResId == resId) {
+                var resName = restaurants[j]["text"];
+
+                var row = '<tr><td><a href="javascript:void(0)" resId="' + resId + 
+                  '" class="competitor">' + resName + '</a></td></tr>';
+
+                $('#competitorsListTable').append(row);
+                nComp++;
+              }
+            }
+          }
+        }
+
+        if (nComp > 0) {
+          $('#displayCompetitors').show();
+
+          $(".competitor").click(function(){
+            clickedFromList = true;
+            var clickedResId = $(this).attr('resId');
+            $('#selectRes').selectivity('value', clickedResId);  
+            processChosenRestaurant(false, false);
+
+            if (homeRestaurantId) {
+              $('#backToHome').show();
+            }
+
+            clickedFromList = false;
+          });
+
+        } else {
+          $('#displayCompetitors').hide();
+        }
+      }
+
+      var listShown = false;
+      var simResData = [];
+      var clickedFromList = false;
+
+      function setDisplayCompButtonText() {
+        if (listShown) {
+          $('#displayCompetitors').text('Hide list of competitors')
+        } else {
+          $('#displayCompetitors').text('View analysis of selected competitor(s)')
+        }        
+      }
+
+      function init() {
+
+        $.getJSON(
+          urlBase + 'result/similar_restaurants.json',
+          function(data)
+          {
+            simResData = data;
+
+            $.getJSON(
+              urlBase + "result/restaurants.json",
+              function (result) {
+                restaurants = result;
+
+                $('#selectRes').selectivity({
+                    allowClear: true,
+                    items: result,
+                    placeholder: 'Please select a restaurant'
+                });
+
+                if (urlResId != null) {
+                  $('#selectRes').selectivity('value', urlResId);  
+                  clickedFromList = false;
+                  processChosenRestaurant(true, true);
+                }
+
+                $('#selectRes').on("change", function() {
+                  if (!clickedFromList) {
+                    listShown = false;
+                    setDisplayCompButtonText();
+                    $('#competitorsList').hide();
+                  }
+                  processChosenRestaurant(!clickedFromList, !clickedFromList);
+                }); 
+
+                $("#displayCompetitors").click(function(){
+                  $('#competitorsList').toggle();
+                  listShown = !listShown;
+                  //if (listShown) {
+                  //  $('#backToHome').show();
+                  //}
+                  setDisplayCompButtonText();
+                });   
+
+                $('#backToHome').click(function(){
+                  if(homeRestaurantId) {
+                    clickedFromList = true;
+                    $('#selectRes').selectivity('value', homeRestaurantId);  
+                    processChosenRestaurant(false, false);
+                    $('#backToHome').hide();
+                    clickedFromList = false;
+                  }
+                })    
+              }
+            );
+          }
+        )
+      }
     </script>
   </head>
   <body>
@@ -395,7 +473,7 @@
         <td>
         <table>
           <tr>
-            <td><button id="displayCompetitors">View analysis of selected competitor(s)</button></td>
+            <td><button id="displayCompetitors" style="display: none;">View analysis of selected competitor(s)</button></td>
             <td><button id="backToHome" style="display: none;"></button></td>
           </tr>
         </table>
@@ -403,13 +481,7 @@
       </tr>
       <tr id="competitorsList" style="display: none;">
         <td>
-          <table>
-            <tr>
-              <td><a href="javascript:void(0)" resId="SmkYLXEYhzwUZdS6TAevHg" class="competitor">Butcher and the Rye (212 6th St)</a></td>
-            </tr>
-            <tr>
-              <td><a href="javascript:void(0)" resId="d2ZQRjuizstCTnicysmpMQ" class="competitor">Eleven (1150 Smallman St)</a></td>
-            </tr>
+          <table id="competitorsListTable">
           </table>
         </td>
       </tr>
